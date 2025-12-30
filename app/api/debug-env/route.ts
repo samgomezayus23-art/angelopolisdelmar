@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+    const buildTimestamp = "2025-12-30 13:45 (v3.2)";
     const envVars = {
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY ? `${process.env.GEMINI_API_KEY.substring(0, 5)}...` : 'MISSING',
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'PRESENT' : 'MISSING',
-        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'PRESENT' : 'MISSING',
-        STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? 'PRESENT' : 'MISSING',
-        RESEND_API_KEY: process.env.RESEND_API_KEY ? 'PRESENT' : 'MISSING',
-        NODE_ENV: process.env.NODE_ENV,
+        STATUS: "DIAGNOSTIC_ACTIVE",
+        BUILD: buildTimestamp,
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY ? "Presente" : "FALTANTE",
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Presente" : "FALTANTE",
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "Presente" : "FALTANTE",
+        ENVIRONMENT: process.env.NODE_ENV || "unknown",
+        NODE_VERSION: process.version,
+        AVAILABLE_KEYS: Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('KEY')).slice(0, 10),
+        PATH_CWD: process.cwd()
     };
 
     return NextResponse.json(envVars);

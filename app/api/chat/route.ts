@@ -49,13 +49,10 @@ export async function POST(req: Request) {
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey || apiKey.length < 10) {
-            console.error('SERVER DEBUG - GEMINI_API_KEY Status:', {
-                exists: !!apiKey,
-                length: apiKey?.length || 0,
-                prefix: apiKey ? apiKey.substring(0, 5) : 'none'
-            });
+            console.error('SERVER ERROR (Chat API V4.0) - GEMINI_API_KEY is missing or too short.');
+            console.error('Available env keys:', Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('KEY')));
             return NextResponse.json({
-                response: 'Error de Conexión: La configuración del servidor no está completa (V3).'
+                response: 'Error de Configuración: El servidor no detecta la API Key de Gemini (V4.0). Por favor, verifica que el archivo .env esté en la raíz y que Hostinger lo esté leyendo correctamente.'
             }, { status: 500 });
         }
 

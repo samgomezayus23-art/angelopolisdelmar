@@ -10,10 +10,10 @@ Cuando te pregunten donde nos ubicamos, DEBES seguir estas reglas estrictas:
 1. **SIEMPRE** di que estamos en el "**Barrio Cielo Mar**" (nunca digas solo "Cielo Mar").
 2. **SIEMPRE** menciona que estamos **junto al sector del Hotel Las Américas**.
 3. **SIEMPRE** di que estamos a solo **3 minutos** del aeropuerto.
-4. **LINK AL MAPA**: Siempre invita a ver el mapa en la sección "Nosotros" y proporciona el link directo: https://effortless-twilight-3f9607.netlify.app/about
+4. **LINK AL MAPA**: Siempre invita a ver el mapa en la sección "Nosotros" y proporciona el link directo: https://angelopolisdelmar.com/about
 
 **Ejemplo de respuesta correcta:** 
-"¡Hola! Qué gusto saludarte. Nos encontramos ubicados en el **Barrio Cielo Mar**, en la zona norte de Cartagena, justo junto al sector del Hotel Las Américas. Estamos a pasos de la playa y a tan solo **3 minutos** del aeropuerto. Te invito a ver nuestro mapa detallado en nuestra sección 'Nosotros' aquí: https://effortless-twilight-3f9607.netlify.app/about"
+"¡Hola! Qué gusto saludarte. Nos encontramos ubicados en el **Barrio Cielo Mar**, en la zona norte de Cartagena, justo junto al sector del Hotel Las Américas. Estamos a pasos de la playa y a tan solo **3 minutos** del aeropuerto. Te invito a ver nuestro mapa detallado en nuestra sección 'Nosotros' aquí: https://angelopolisdelmar.com/about"
 
 ### TU MISIÓN:
 Brindar una experiencia premium, cálida y servicial. Tu objetivo es que cada huésped se sienta bienvenido y atendido desde el primer mensaje. Ayúdales a conocer cada rincón de la propiedad y verifica disponibilidad real usando tus herramientas de manera eficiente.
@@ -38,7 +38,7 @@ Brindar una experiencia premium, cálida y servicial. Tu objetivo es que cada hu
 
 **REGLAS DE RESPUESTA:**
 - Si el usuario pregunta por disponibilidad, **USA LAS HERRAMIENTAS**. 
-- Si no tienes fechas claras, pregunta por ellas con amabilidad y también ofrece el link oficial: https://effortless-twilight-3f9607.netlify.app/reservations
+- Si no tienes fechas claras, pregunta por ellas con amabilidad y también ofrece el link oficial: https://angelopolisdelmar.com/reservations
 - La fecha actual es: ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}. 
 - Sé siempre acogedor, servicial y resolutivo. Evita sonar puramente robótico; usa un lenguaje que invite al descanso y al disfrute.
 `;
@@ -48,9 +48,11 @@ export async function POST(req: Request) {
         const { message } = await req.json();
         const apiKey = process.env.GEMINI_API_KEY;
 
-        if (!apiKey) {
-            console.error('Chat API Error: GEMINI_API_KEY is missing');
-            return NextResponse.json({ response: 'Error: Configuración incompleta.' }, { status: 500 });
+        if (!apiKey || apiKey.length < 10) {
+            console.error('Chat API Error: GEMINI_API_KEY is missing or invalid');
+            return NextResponse.json({
+                response: 'Lo siento, mi configuración está incompleta en este momento (API Key missing). Por favor contacta al administrador.'
+            }, { status: 500 });
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
@@ -96,49 +98,61 @@ export async function POST(req: Request) {
         let result = await chat.sendMessage(message);
         let response = result.response;
 
-        // Manejar herramientas (máximo 1 nivel de recursión simple para estabilidad)
-        const calls = response.functionCalls();
-        if (calls && calls.length > 0) {
-            const call = calls[0];
-            const propertyMap: Record<string, string> = {
-                'apartasuite': '2564495f-9b63-4269-8b2d-6eb77e340a1c',
-                'cabana': 'e6fbd744-8d92-47f1-a62c-aaf864ee3692',
-                'casa': '5ecbec5e-da1b-4c1f-85b7-a9ca4051085f',
-                'chalet': 'a7bf9bed-16ee-41a8-81fc-99f9b679f34a'
-            };
+        // Limitar a 5 turnos de herramientas para evitar bucles infinitos
+        let toolTurnCount = 0;
+        const maxTurns = 5;
 
-            let toolResult: any = {};
-            try {
-                const cleanId = (call.args as any).propertyId?.toLowerCase();
-                const actualId = propertyMap[cleanId] || cleanId;
+        while (response.functionCalls()?.length > 0 && toolTurnCount < maxTurns) {
+            toolTurnCount++;
+            const calls = response.functionCalls();
+            const toolResponses = [];
 
-                if (call.name === 'check_property_availability') {
-                    const { checkIn, checkOut } = call.args as any;
-                    const isAvailable = await checkAvailability(actualId, checkIn, checkOut);
-                    toolResult = { available: isAvailable };
-                } else if (call.name === 'get_calendar') {
-                    const bookings = await getBookedDates(actualId);
-                    toolResult = { bookings };
+            for (const call of calls) {
+                const propertyMap: Record<string, string> = {
+                    'apartasuite': '2564495f-9b63-4269-8b2d-6eb77e340a1c',
+                    'cabana': 'e6fbd744-8d92-47f1-a62c-aaf864ee3692',
+                    'casa': '5ecbec5e-da1b-4c1f-85b7-a9ca4051085f',
+                    'chalet': 'a7bf9bed-16ee-41a8-81fc-99f9b679f34a'
+                };
+
+                let toolResult: any = {};
+                try {
+                    const cleanId = (call.args as any).propertyId?.toLowerCase();
+                    const actualId = propertyMap[cleanId] || cleanId;
+
+                    if (call.name === 'check_property_availability') {
+                        const { checkIn, checkOut } = call.args as any;
+                        const isAvailable = await checkAvailability(actualId, checkIn, checkOut);
+                        toolResult = { available: isAvailable };
+                    } else if (call.name === 'get_calendar') {
+                        const bookings = await getBookedDates(actualId);
+                        toolResult = { bookings };
+                    }
+
+                    toolResponses.push({
+                        functionResponse: {
+                            name: call.name,
+                            response: toolResult,
+                        },
+                    });
+                } catch (e) {
+                    console.error('Tool Interna Error:', e);
+                    toolResponses.push({
+                        functionResponse: {
+                            name: call.name,
+                            response: { error: 'Error al consultar disponibilidad' },
+                        },
+                    });
                 }
-
-                const toolResponse = await chat.sendMessage([{
-                    functionResponse: {
-                        name: call.name,
-                        response: toolResult,
-                    },
-                }]);
-                response = toolResponse.response;
-            } catch (e) {
-                console.error('Tool Error:', e);
-                return NextResponse.json({
-                    response: 'Tuve un problema al consultar el calendario. Por favor verifica aquí: https://effortless-twilight-3f9607.netlify.app/reservations'
-                });
             }
+
+            const toolResultResponse = await chat.sendMessage(toolResponses);
+            response = toolResultResponse.response;
         }
 
         if (response.candidates && response.candidates[0].finishReason === 'SAFETY') {
             return NextResponse.json({
-                response: 'Por políticas de seguridad no puedo darte esa respuesta. Si es sobre reservas, usa: https://effortless-twilight-3f9607.netlify.app/reservations'
+                response: 'Por políticas de seguridad no puedo darte esa respuesta. Si es sobre reservas, usa: https://angelopolisdelmar.com/reservations'
             });
         }
 
@@ -147,7 +161,8 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.error('FINAL CHAT ERROR:', error);
         return NextResponse.json({
-            response: 'Lo siento, hubo un error técnico. Intenta de nuevo o visita: https://effortless-twilight-3f9607.netlify.app/reservations'
+            response: 'Lo siento, hubo un error técnico. Intenta de nuevo o visita: https://angelopolisdelmar.com/reservations'
         }, { status: 500 });
     }
 }
+

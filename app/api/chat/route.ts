@@ -52,7 +52,7 @@ export async function POST(req: Request) {
             console.error('SERVER ERROR (Chat API V4.0) - GEMINI_API_KEY is missing or too short.');
             console.error('Available env keys:', Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('KEY')));
             return NextResponse.json({
-                response: 'Error de Configuración: El servidor no detecta la API Key de Gemini (V4.0). Por favor, verifica que el archivo .env esté en la raíz y que Hostinger lo esté leyendo correctamente.'
+                response: 'Error de Configuración: El servidor no detecta la API Key de Gemini (V5.0 Fallback). Por favor, verifica que las variables de entorno estén configuradas en el panel de Hostinger.'
             }, { status: 500 });
         }
 

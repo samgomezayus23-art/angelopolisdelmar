@@ -12,7 +12,7 @@ export default function WelcomePage() {
           playsInline
           className="hero-video"
         >
-          <source src="/videos/hero-video-hd.mp4" type="video/mp4" />
+          <source src="/videos/recorte piscina principal.mp4" type="video/mp4" />
         </video>
         <div className="hero-overlay"></div>
         <div className="hero-content-welcome">

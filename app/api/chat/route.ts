@@ -49,9 +49,13 @@ export async function POST(req: Request) {
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey || apiKey.length < 10) {
-            console.error('Chat API Error: GEMINI_API_KEY is missing or invalid');
+            console.error('SERVER DEBUG - GEMINI_API_KEY Status:', {
+                exists: !!apiKey,
+                length: apiKey?.length || 0,
+                prefix: apiKey ? apiKey.substring(0, 5) : 'none'
+            });
             return NextResponse.json({
-                response: 'Lo siento, mi configuración está incompleta en este momento (API Key missing). Por favor contacta al administrador.'
+                response: 'Error de Conexión: La configuración del servidor no está completa (V3).'
             }, { status: 500 });
         }
 
@@ -102,9 +106,10 @@ export async function POST(req: Request) {
         let toolTurnCount = 0;
         const maxTurns = 5;
 
-        while (response.functionCalls()?.length > 0 && toolTurnCount < maxTurns) {
+        while (response && response.functionCalls() && (response.functionCalls()?.length || 0) > 0 && toolTurnCount < maxTurns) {
             toolTurnCount++;
             const calls = response.functionCalls();
+            if (!calls) break;
             const toolResponses = [];
 
             for (const call of calls) {
